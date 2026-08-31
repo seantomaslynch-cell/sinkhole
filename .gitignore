@@ -1,0 +1,14 @@
+# Generated store-listing deliverables (cover art, submission zips) —
+# regenerable from the tracked source files via make_covers.py / build_zip.py,
+# delivered directly to the developer, not meant to live in version control.
+# Same rule Endless Core uses, for the same reason.
+store-assets/
+sinkhole-playgama.zip
+
+# Stale build directory from an earlier packing approach; build_zip.py now
+# packs straight from the source files and never creates this.
+dist/
+
+# Python bytecode from the tooling scripts.
+__pycache__/
+*.pyc

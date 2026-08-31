@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+<title>Sinkhole</title>
+<script src="https://bridge.playgama.com/v2/stable/playgama-bridge.js"></script>
+<link rel="stylesheet" href="style.css" />
+</head>
+<body>
+<div id="game-container">
+  <canvas id="gameCanvas"></canvas>
+
+  <!-- ================= HUD (visible only during a run) ================= -->
+  <div id="hud" class="hidden">
+    <div id="hud-top">
+      <div id="depth-display">0<span class="unit">m</span></div>
+      <div id="haul-display"><span class="coin-dot"></span><span id="haul-amount">0</span></div>
+    </div>
+    <div id="lamp-wrap">
+      <div id="lamp-bar-outer">
+        <div id="lamp-bar-inner"></div>
+        <!-- How much of the remaining lamp the climb home will consume at the
+             current depth and weight. This is the whole game made legible. -->
+        <div id="lamp-reserve"></div>
+      </div>
+      <div id="lamp-label">LAMP</div>
+    </div>
+    <div id="weight-wrap">
+      <div id="weight-bar-outer"><div id="weight-bar-inner"></div></div>
+      <div id="weight-label">WEIGHT</div>
+    </div>
+    <div id="stratum-display">Topsoil</div>
+    <div id="ascend-hint" class="hidden">RELEASE TO CLIMB</div>
+  </div>
+
+  <!-- Center-screen transient callouts (gas, snag, rock, depth records) -->
+  <div id="toast" class="hidden"></div>
+
+  <!-- ============ SDK-driven platform pause (not a player toggle) ============ -->
+  <div id="pause-overlay" class="overlay hidden">
+    <h1>Paused</h1>
+  </div>
+
+  <!-- ========================= Start screen ========================= -->
+  <div id="start-screen" class="overlay">
+    <div class="menu-title">
+      <div class="menu-eyebrow">A one-breath descent</div>
+      <h1>SINKHOLE</h1>
+      <div class="menu-rule"></div>
+    </div>
+    <p class="menu-tagline">Hold to fall. Let go to climb.<br />Everything you carry slows the way back.</p>
+    <div id="start-stats">
+      <div class="stat-pill"><span class="coin-dot"></span> <span id="start-coins">0</span></div>
+      <div class="stat-pill">Best <span id="start-best">0</span>m</div>
+    </div>
+    <button id="dive-btn" class="primary-btn">Descend</button>
+    <button id="start-upgrades-btn" class="secondary-btn">Outfit</button>
+    <button id="start-leaderboard-btn" class="secondary-btn">Deepest Divers</button>
+  </div>
+
+  <!-- Leaderboard (Playgama SaaS). Only rendered into when
+       bridge.leaderboards.type is 'in_game'; platforms with their own
+       leaderboard UI show a native popup instead and never touch this markup. -->
+  <div id="leaderboard-screen" class="overlay hidden">
+    <h1>DEEPEST DIVERS</h1>
+    <div class="leaderboard-list" id="leaderboard-list"></div>
+    <button id="close-leaderboard-btn" class="secondary-btn">Back</button>
+  </div>
+
+  <!-- ===================== First-run tutorial ===================== -->
+  <div id="tutorial-screen" class="overlay hidden">
+    <h1>THE RULES</h1>
+    <div class="tutorial-list">
+      <p><b>Hold</b> anywhere to pay out the line and sink.</p>
+      <p><b>Release</b> and the winch hauls you back up.</p>
+      <p>Treasure is picked up automatically — but every piece makes the climb slower.</p>
+      <p>Your lamp is the only clock. If it dies before you surface, the haul is lost.</p>
+    </div>
+    <button id="tutorial-close-btn" class="primary-btn">Go down</button>
+  </div>
+
+  <!-- ================= Run failed (lamp died) ================= -->
+  <div id="lost-screen" class="overlay hidden">
+    <h1 class="fail-title">THE LAMP WENT OUT</h1>
+    <p class="big-stat"><span id="lost-depth">0</span>m</p>
+    <p class="sub-stat">Haul lost: <span id="lost-haul">0</span></p>
+    <p id="lost-record" class="record-badge hidden">DEEPEST YET</p>
+    <button id="relight-btn" class="reward-btn">Watch an ad to relight the lamp</button>
+    <button id="lost-again-btn" class="primary-btn">Descend again</button>
+    <button id="lost-upgrades-btn" class="secondary-btn">Outfit</button>
+    <button id="lost-menu-btn" class="secondary-btn">Surface camp</button>
+  </div>
+
+  <!-- ================= Run succeeded (surfaced) ================= -->
+  <div id="surfaced-screen" class="overlay hidden">
+    <h1 class="win-title">SURFACED</h1>
+    <p class="big-stat"><span id="surfaced-haul">0</span></p>
+    <p class="sub-stat">from <span id="surfaced-depth">0</span>m down</p>
+    <p id="surfaced-record" class="record-badge hidden">DEEPEST YET</p>
+    <button id="double-btn" class="reward-btn">Watch an ad to double the haul</button>
+    <button id="surfaced-again-btn" class="primary-btn">Descend again</button>
+    <button id="surfaced-upgrades-btn" class="secondary-btn">Outfit</button>
+    <button id="surfaced-menu-btn" class="secondary-btn">Surface camp</button>
+  </div>
+
+  <!-- ========================= Outfit / upgrades ========================= -->
+  <div id="upgrades-screen" class="overlay hidden">
+    <h1>OUTFIT</h1>
+    <p class="banked-line"><span class="coin-dot"></span> <span id="upgrade-coins">0</span></p>
+
+    <div class="upgrade-card">
+      <div class="upgrade-name">Lamp</div>
+      <div class="upgrade-desc" id="lamp-desc">Level 0/5</div>
+      <button id="lamp-btn" class="upgrade-btn">Improve</button>
+    </div>
+
+    <div class="upgrade-card">
+      <div class="upgrade-name">Winch</div>
+      <div class="upgrade-desc" id="winch-desc">Level 0/5</div>
+      <button id="winch-btn" class="upgrade-btn">Improve</button>
+    </div>
+
+    <div class="upgrade-card">
+      <div class="upgrade-name">Satchel</div>
+      <div class="upgrade-desc" id="satchel-desc">Level 0/5</div>
+      <button id="satchel-btn" class="upgrade-btn">Improve</button>
+    </div>
+
+    <button id="close-upgrades-btn" class="secondary-btn">Back</button>
+  </div>
+</div>
+
+<script src="game.js"></script>
+</body>
+</html>

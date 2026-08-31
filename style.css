@@ -1,0 +1,507 @@
+/* ============================================================
+   Sinkhole — near-black shaft, one warm lamp, cold stone.
+   The palette is deliberately tiny so that the only saturated
+   things on screen are treasure and danger.
+   ============================================================ */
+
+:root {
+  --ink:      #05070c;
+  --stone:    #10151f;
+  --stone-2:  #1a2130;
+  --rope:     #6b6152;
+  --lamp:     #ffcf7a;
+  --lamp-dim: #8a6b38;
+  --gold:     #ffd05e;
+  --danger:   #ff5a49;
+  --gas:      #93e07a;
+  --text:     #e6ecf5;
+  --text-dim: #8b97ab;
+}
+
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+html, body {
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  background: var(--ink);
+  color: var(--text);
+  font-family: "Avenir Next", "Segoe UI", system-ui, -apple-system, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -webkit-tap-highlight-color: transparent;
+  user-select: none;
+  -webkit-user-select: none;
+  overscroll-behavior: none;
+  touch-action: none;
+}
+
+#game-container {
+  position: fixed;
+  inset: 0;
+  overflow: hidden;
+}
+
+#gameCanvas {
+  display: block;
+  position: absolute;
+  top: 0;
+  left: 0;
+  background: var(--ink);
+}
+
+.hidden { display: none !important; }
+
+/* ============================================================
+   Platform pause lockout.
+   The compliance check requires that while paused (a) the first
+   button in the DOM computes to pointer-events:none, and (b) the
+   pause overlay is what elementFromPoint() actually hits. Both
+   are enforced in CSS rather than JS so the lockout survives
+   even if a script error has stopped the loop.
+   ============================================================ */
+body.paused button { pointer-events: none !important; }
+body.paused #game-container > *:not(#pause-overlay) { pointer-events: none !important; }
+body.paused #pause-overlay { pointer-events: auto; z-index: 9999; }
+
+/* ======================== Overlays ======================== */
+.overlay {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  padding: 24px 20px;
+  text-align: center;
+  background:
+    radial-gradient(ellipse at 50% 38%, rgba(255, 207, 122, 0.07), transparent 62%),
+    rgba(5, 7, 12, 0.93);
+  overflow-y: auto;
+  z-index: 20;
+}
+
+.overlay h1 {
+  font-size: clamp(24px, 7vw, 42px);
+  letter-spacing: 0.16em;
+  font-weight: 800;
+  color: var(--text);
+}
+
+#pause-overlay { background: rgba(5, 7, 12, 0.97); }
+
+/* ======================= Start screen ======================= */
+.menu-title { display: flex; flex-direction: column; align-items: center; gap: 6px; }
+
+.menu-eyebrow {
+  font-size: 11px;
+  letter-spacing: 0.42em;
+  text-transform: uppercase;
+  color: var(--lamp-dim);
+}
+
+.menu-title h1 {
+  font-size: clamp(38px, 13vw, 78px);
+  letter-spacing: 0.2em;
+  color: var(--lamp);
+  text-shadow: 0 0 34px rgba(255, 207, 122, 0.34);
+}
+
+.menu-rule {
+  width: 84px;
+  height: 2px;
+  background: linear-gradient(90deg, transparent, var(--lamp-dim), transparent);
+}
+
+.menu-tagline {
+  color: var(--text-dim);
+  font-size: 14px;
+  line-height: 1.65;
+  max-width: 30ch;
+  margin-bottom: 6px;
+}
+
+#start-stats {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 10px;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+
+.stat-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 15px;
+  border-radius: 999px;
+  background: var(--stone);
+  border: 1px solid var(--stone-2);
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+  color: var(--text-dim);
+}
+
+.coin-dot {
+  display: inline-block;
+  width: 11px;
+  height: 11px;
+  border-radius: 50%;
+  background: radial-gradient(circle at 33% 30%, #fff0bd, var(--gold) 58%, #a5741d);
+  flex: none;
+}
+
+/* ========================= Buttons ========================= */
+button {
+  font-family: inherit;
+  font-size: 15px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  border: none;
+  border-radius: 12px;
+  padding: 14px 26px;
+  cursor: pointer;
+  color: var(--text);
+  background: var(--stone-2);
+  transition: transform 0.08s ease, filter 0.15s ease;
+  min-width: 210px;
+  max-width: 340px;
+  width: 82%;
+}
+
+button:active { transform: scale(0.97); }
+button:disabled { opacity: 0.4; cursor: default; }
+button:disabled:active { transform: none; }
+
+.primary-btn {
+  background: linear-gradient(180deg, #ffd98d, var(--lamp) 55%, #e0a744);
+  color: #2a1b05;
+  font-weight: 800;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  box-shadow: 0 6px 26px rgba(255, 207, 122, 0.24);
+}
+
+.secondary-btn {
+  background: var(--stone);
+  border: 1px solid var(--stone-2);
+  color: var(--text-dim);
+}
+
+.reward-btn {
+  background: linear-gradient(180deg, #263149, #1a2233);
+  border: 1px solid #38476a;
+  color: #cfe0ff;
+  font-size: 14px;
+}
+
+/* ========================== HUD ========================== */
+#hud {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  padding: 14px 16px;
+  z-index: 10;
+}
+
+#hud-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+}
+
+#depth-display {
+  font-size: 30px;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+  color: var(--text);
+  text-shadow: 0 2px 12px rgba(0, 0, 0, 0.9);
+}
+
+#depth-display .unit { font-size: 15px; color: var(--text-dim); margin-left: 2px; }
+
+#haul-display {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 20px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  color: var(--gold);
+  text-shadow: 0 2px 12px rgba(0, 0, 0, 0.9);
+}
+
+#lamp-wrap, #weight-wrap {
+  position: absolute;
+  left: 16px;
+  right: 16px;
+  display: flex;
+  align-items: center;
+  gap: 9px;
+}
+
+#lamp-wrap   { bottom: 30px; }
+#weight-wrap { bottom: 12px; }
+
+#lamp-bar-outer, #weight-bar-outer {
+  position: relative;
+  flex: 1;
+  height: 9px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.09);
+  overflow: hidden;
+}
+
+/* The climb-home reserve, hatched off the right end of the lamp bar. When it
+   meets the burning-down lamp, you are exactly out of margin. */
+#lamp-reserve {
+  position: absolute;
+  top: 0;
+  right: 0;
+  height: 100%;
+  width: 0%;
+  background: repeating-linear-gradient(
+    -45deg,
+    rgba(255, 90, 73, 0.55) 0 4px,
+    rgba(255, 90, 73, 0.18) 4px 8px
+  );
+  transition: width 0.12s linear;
+}
+
+#lamp-reserve.over {
+  background: repeating-linear-gradient(
+    -45deg,
+    rgba(255, 90, 73, 0.95) 0 4px,
+    rgba(255, 90, 73, 0.5) 4px 8px
+  );
+}
+
+#weight-bar-outer { height: 5px; }
+
+#lamp-bar-inner {
+  height: 100%;
+  width: 100%;
+  border-radius: 999px;
+  background: linear-gradient(90deg, #ffe6b0, var(--lamp));
+  transition: width 0.1s linear, background 0.3s ease;
+}
+
+#lamp-bar-inner.low      { background: linear-gradient(90deg, #ffae5e, #ff7a3c); }
+#lamp-bar-inner.critical { background: linear-gradient(90deg, #ff7a5e, var(--danger)); }
+
+#weight-bar-inner {
+  height: 100%;
+  width: 0%;
+  border-radius: 999px;
+  background: linear-gradient(90deg, #8b97ab, #58657f);
+  transition: width 0.18s ease;
+}
+
+#lamp-label, #weight-label {
+  font-size: 9px;
+  letter-spacing: 0.22em;
+  color: var(--text-dim);
+  width: 52px;
+  text-align: right;
+  flex: none;
+}
+
+#stratum-display {
+  position: absolute;
+  top: 52px;
+  left: 0;
+  right: 0;
+  text-align: center;
+  font-size: 10px;
+  letter-spacing: 0.34em;
+  text-transform: uppercase;
+  color: var(--text-dim);
+}
+
+#ascend-hint {
+  position: absolute;
+  top: 50%;
+  left: 0;
+  right: 0;
+  text-align: center;
+  font-size: 12px;
+  letter-spacing: 0.3em;
+  color: var(--lamp);
+  animation: pulse 1.1s ease-in-out infinite;
+}
+
+@keyframes pulse { 0%, 100% { opacity: 0.35; } 50% { opacity: 1; } }
+
+/* ========================== Toast ========================== */
+#toast {
+  position: absolute;
+  top: 38%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  padding: 10px 22px;
+  border-radius: 999px;
+  background: rgba(5, 7, 12, 0.88);
+  border: 1px solid var(--stone-2);
+  font-size: 13px;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  z-index: 15;
+  pointer-events: none;
+  white-space: nowrap;
+}
+
+#toast.danger { color: var(--danger); border-color: rgba(255, 90, 73, 0.45); }
+#toast.gas    { color: var(--gas);    border-color: rgba(147, 224, 122, 0.45); }
+#toast.good   { color: var(--gold);   border-color: rgba(255, 208, 94, 0.45); }
+
+/* ===================== Result screens ===================== */
+.fail-title { color: var(--danger); }
+.win-title  { color: var(--lamp); }
+
+.big-stat {
+  font-size: clamp(40px, 15vw, 72px);
+  font-weight: 800;
+  color: var(--gold);
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
+}
+
+.sub-stat { color: var(--text-dim); font-size: 14px; margin-bottom: 8px; }
+
+.record-badge {
+  font-size: 11px;
+  letter-spacing: 0.3em;
+  color: var(--lamp);
+  border: 1px solid var(--lamp-dim);
+  border-radius: 999px;
+  padding: 5px 14px;
+  margin-bottom: 6px;
+}
+
+/* ======================== Upgrades ======================== */
+.banked-line {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 19px;
+  font-weight: 700;
+  color: var(--gold);
+  margin-bottom: 4px;
+}
+
+.upgrade-card {
+  width: 88%;
+  max-width: 380px;
+  background: var(--stone);
+  border: 1px solid var(--stone-2);
+  border-radius: 14px;
+  padding: 14px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  align-items: stretch;
+  text-align: left;
+}
+
+.upgrade-name { font-size: 16px; font-weight: 700; letter-spacing: 0.06em; }
+.upgrade-desc { font-size: 12px; color: var(--text-dim); line-height: 1.5; }
+
+.upgrade-btn {
+  width: 100%;
+  min-width: 0;
+  padding: 11px;
+  font-size: 14px;
+  background: var(--stone-2);
+}
+
+.upgrade-btn.affordable {
+  background: linear-gradient(180deg, #ffd98d, var(--lamp));
+  color: #2a1b05;
+  font-weight: 800;
+}
+
+/* ====================== Leaderboard ====================== */
+.leaderboard-list {
+  width: 90%;
+  max-width: 420px;
+  max-height: 52vh;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin: 6px 0 14px;
+}
+
+.leaderboard-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 14px;
+  border-radius: 10px;
+  background: var(--stone);
+  border: 1px solid var(--stone-2);
+  font-size: 14px;
+}
+
+.leaderboard-row.is-you {
+  border-color: var(--lamp-dim);
+  background: rgba(255, 207, 122, 0.07);
+}
+
+.leaderboard-rank {
+  width: 38px;
+  flex: none;
+  text-align: right;
+  color: var(--text-dim);
+  font-variant-numeric: tabular-nums;
+}
+
+.leaderboard-row:nth-child(1) .leaderboard-rank { color: var(--lamp); font-weight: 800; }
+
+.leaderboard-name {
+  flex: 1;
+  text-align: left;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.leaderboard-score {
+  flex: none;
+  color: var(--gold);
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.leaderboard-empty {
+  padding: 22px 12px;
+  color: var(--text-dim);
+  font-size: 13px;
+}
+
+/* While an advanced banner is showing, keep the bottom 7% of the viewport
+   clear so it can never sit on top of a button. */
+body.banner .overlay { padding-bottom: calc(7% + 24px); }
+
+.tutorial-list {
+  display: flex;
+  flex-direction: column;
+  gap: 13px;
+  max-width: 34ch;
+  margin: 6px 0 16px;
+}
+
+.tutorial-list p { font-size: 14px; line-height: 1.6; color: var(--text-dim); }
+.tutorial-list b { color: var(--lamp); font-weight: 700; }
+
+/* Very short viewports (landscape phones): tighten everything down so the
+   primary action never falls below the fold. */
+@media (max-height: 460px) {
+  .overlay { gap: 6px; padding: 12px; }
+  .overlay h1 { font-size: 22px; }
+  .menu-title h1 { font-size: 34px; }
+  .menu-tagline, .tutorial-list { display: none; }
+  button { padding: 10px 18px; font-size: 13px; }
+  .big-stat { font-size: 34px; }
+  .upgrade-card { padding: 9px 12px; gap: 4px; }
+}
