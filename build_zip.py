@@ -7,8 +7,18 @@ shipped files go in — serve.js, the checker and the docs are development
 tooling and must not be in the upload.
 """
 import os
+import re
 import sys
 import zipfile
+
+# The GitHub Pages build carries social/link-preview metadata with absolute
+# URLs. None of that belongs in a bundle whose whole selling point to a
+# moderator is that it is self-contained, so it lives inside a marked block in
+# index.html and is stripped here on the way into the archive.
+PAGES_ONLY = re.compile(
+    r"[ \t]*<!--\s*PAGES-ONLY:START.*?PAGES-ONLY:END\s*-->[ \t]*\r?\n?",
+    re.DOTALL,
+)
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 OUT = os.path.join(HERE, "sinkhole-playgama.zip")
@@ -34,15 +44,24 @@ def main():
 
     with zipfile.ZipFile(OUT, "w", zipfile.ZIP_DEFLATED) as z:
         for f in BUNDLE:
+            src = os.path.join(HERE, f)
             # arcname without any directory component — index.html must sit at
             # the archive root or the platform will not find the entry point.
-            z.write(os.path.join(HERE, f), arcname=f)
+            if f == "index.html":
+                html = open(src, encoding="utf-8").read()
+                stripped, n = PAGES_ONLY.subn("", html)
+                if n:
+                    print("  stripped %d Pages-only block(s) from index.html" % n)
+                z.writestr(f, stripped)
+            else:
+                z.write(src, arcname=f)
 
     size = os.path.getsize(OUT)
     with zipfile.ZipFile(OUT) as z:
         bad = z.testzip()
         names = z.namelist()
         raw = sum(i.file_size for i in z.infolist())
+        packed_index = z.read("index.html").decode("utf-8") if "index.html" in names else ""
 
     print("built %s" % os.path.basename(OUT))
     print("  files:       %s" % ", ".join(names))
@@ -59,6 +78,18 @@ def main():
     if raw > LIMIT_MB * 1024 * 1024:
         print("  FAIL bundle exceeds the %d MB initial-load limit" % LIMIT_MB)
         ok = False
+
+    # Verify the strip actually worked, rather than trusting that it did. The
+    # only URL allowed to leave the bundle is the Bridge SDK itself.
+    urls = re.findall(r"https?://[^\"'\s>]+", packed_index)
+    foreign = [u for u in urls if "bridge.playgama.com" not in u]
+    if foreign:
+        print("  FAIL packed index.html still references external URLs:")
+        for u in foreign[:5]:
+            print("       %s" % u)
+        ok = False
+    else:
+        print("  self-contained: no external URLs beyond the Bridge SDK")
 
     # The placeholder token produces a perfectly valid ZIP with a dead
     # leaderboard, and nothing about the file would tell you. Warn at the last

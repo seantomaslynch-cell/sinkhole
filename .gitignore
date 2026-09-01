@@ -1,9 +1,12 @@
-# Generated store-listing deliverables (cover art, submission zips) —
-# regenerable from the tracked source files via make_covers.py / build_zip.py,
-# delivered directly to the developer, not meant to live in version control.
-# Same rule Endless Core uses, for the same reason.
-store-assets/
+# The submission ZIP is a build artifact — regenerable from tracked sources
+# via build_zip.py, and it embeds the SaaS token, so it should never be
+# committed.
 sinkhole-playgama.zip
+
+# store-assets/ IS tracked, unlike Endless Core, because GitHub Pages serves
+# the cover art from here: it is the og:image for link previews and the site
+# favicon. Files a live site serves have to be in the repo. Regenerate with
+# make_covers.py rather than editing the PNGs by hand.
 
 # Stale build directory from an earlier packing approach; build_zip.py now
 # packs straight from the source files and never creates this.

@@ -144,6 +144,14 @@ def static_scan(path):
     game_dir = os.path.dirname(path)
     html = open(path, encoding="utf-8").read()
 
+    # index.html carries a PAGES-ONLY block of social metadata that build_zip.py
+    # strips before packing. Scan the stripped form, because that — not the
+    # working file — is what actually ships and what a moderator sees.
+    html = re.sub(
+        r"[ \t]*<!--\s*PAGES-ONLY:START.*?PAGES-ONLY:END\s*-->[ \t]*\r?\n?",
+        "", html, flags=re.DOTALL,
+    )
+
     js = ""
     js_path = os.path.join(game_dir, "game.js")
     if os.path.exists(js_path):
