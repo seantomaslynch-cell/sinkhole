@@ -127,14 +127,31 @@ unreadable letterbox at 1080×1920.
 Covers live outside the shipped bundle and are uploaded separately as listing
 assets — `build_zip.py` never includes them.
 
-### The public token
+### The public token — the last mile
 
-`playgama-bridge-config.json` ships with `"publicToken":
-"REPLACE_WITH_PLAYGAMA_PUBLIC_TOKEN"`. Get the real one from the Playgama
-developer dashboard after creating the game entry, and paste it in before
-building the final ZIP. Until then the SaaS leaderboard reports
-`type: 'not_available'` and the game degrades to an "unavailable" toast —
-verified, not assumed. Nothing else is affected.
+The SaaS `publicToken` only exists once the game entry has been created in the
+Playgama developer dashboard, so it cannot be committed ahead of time. When you
+have it:
+
+```bash
+python set_token.py <public-token>
+```
+
+That writes the token into `playgama-bridge-config.json` (a surgical one-line
+edit, not a JSON round-trip that would reformat the file), re-validates the
+JSON, and rebuilds the ZIP — because a ZIP built before the token was set still
+contains the placeholder and nothing about the filename would tell you. It
+rejects obvious paste mistakes (a whole URL, a quoted string) rather than
+letting them reach moderation two weeks later.
+
+`python set_token.py --show` reports what is currently configured, and
+`build_zip.py` prints a loud warning if you build while the placeholder is
+still in place.
+
+Until the token is set the leaderboard reports `type: 'not_available'` and the
+game degrades to an "unavailable" toast — verified, not assumed. Nothing else
+is affected, so a placeholder build is still uploadable; it just has a dead
+leaderboard button.
 
 ## The App Store gap
 

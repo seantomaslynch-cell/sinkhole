@@ -60,6 +60,20 @@ def main():
         print("  FAIL bundle exceeds the %d MB initial-load limit" % LIMIT_MB)
         ok = False
 
+    # The placeholder token produces a perfectly valid ZIP with a dead
+    # leaderboard, and nothing about the file would tell you. Warn at the last
+    # step before upload rather than letting it reach moderation.
+    cfg_path = os.path.join(HERE, "playgama-bridge-config.json")
+    if os.path.exists(cfg_path):
+        import json
+        with open(cfg_path, encoding="utf-8") as f:
+            token = (json.load(f).get("saas") or {}).get("publicToken", "")
+        if "REPLACE_WITH" in token:
+            print()
+            print("  !! WARNING: the Playgama SaaS publicToken is still the placeholder.")
+            print("     This ZIP is uploadable but its leaderboard will be dead.")
+            print("     Fix with:  python set_token.py <token>")
+
     print("  OK" if ok else "  NOT SHIPPABLE")
     return 0 if ok else 1
 
